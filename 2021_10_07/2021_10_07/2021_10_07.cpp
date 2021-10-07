@@ -124,13 +124,26 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
 
 #define EX_01           0       /// 자유 곡선 그리기 예제
-#define EX_02           1       /// X 추가로 그리기 예제
+#define EX_02           0       /// X 추가로 그리기 예제
+#define EX_03           1       /// 그림판 예제
+
+/*
+* 그림판 설계 : 메뉴 (2) - 그리기 종류 선택, 색상 선택
+*   --> 모든 CALLBACK 함수는 독립적으로 동작한다.
+*/
 
 #if EX_01
 int g_x, g_y;       // 가장 최신의 과거 위치 보관
 int g_flag;         // 플래그 변수. 0 이면 그리지 않는다. 1이면 그린다.
 #endif
 
+#if EX_03
+int g_x, g_y;           // 마우스 다운 시의 좌표 기억
+int g_color;            // 색상 타입 정보
+                        // 1(빨강), 2(녹색), 3(파랑)
+int g_draw_type;        // 그리기 종류를 기억할 변수
+                        // 1(선 그리기), 2(사각형), 3(타원), 4(자유선)
+#endif
 
 /// CALLBACK 함수 : 자신이 아닌 프로세스나 라이브러리에 의해 호출되는 외부 노출 함수
 /// word, long 자료형이 존재했었음. word는 1byte(char), long 4byte(int)
@@ -139,12 +152,46 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
+    /// 각종 ID 값을 구분하는 용도
     case WM_COMMAND:
         {
             int wmId = LOWORD(wParam);
             // 메뉴 선택을 구문 분석합니다:
             switch (wmId)
             {
+#if EX_03
+            case ID_32771:      // 선 그리기
+                MessageBox(hWnd, L"선 그리기", L"메뉴 선택", MB_OK);
+                g_draw_type = 1;
+                break;
+
+            case ID_32772:      // 사각형 그리기
+                MessageBox(hWnd, L"사각형 그리기", L"메뉴 선택", MB_OK);
+                g_draw_type = 2;
+                break;
+
+            case ID_32773:      // 타원 그리기
+                MessageBox(hWnd, L"타원 그리기", L"메뉴 선택", MB_OK);
+                g_draw_type = 3;
+                break;
+
+            case ID_32774:      // 자유선 그리기
+                MessageBox(hWnd, L"자유선 그리기", L"메뉴 선택", MB_OK);
+                g_draw_type = 4;
+                break;
+
+            case ID_32775:      // 빨강
+                g_color = 1;
+                break;
+
+            case ID_32776:      // 녹색
+                g_color = 2;
+                break;
+
+            case ID_32777:      // 파랑
+                g_color = 3;
+                break;
+#endif
             case IDM_ABOUT:
                 DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
                 break;
@@ -156,6 +203,78 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
         }
         break;
+#if EX_03
+    case WM_LBUTTONDOWN:
+    {
+        /// 시작 위치 좌표 값 획득
+        g_x = LOWORD(lParam);
+        g_y = HIWORD(lParam);
+    }
+        break;
+
+    case WM_LBUTTONUP:
+    {
+        // 현재 위치 좌표 값
+        int x, y;
+        HDC hdc;
+        HPEN newPen, osPen;
+        x = LOWORD(lParam);
+        y = HIWORD(lParam);
+
+        hdc = GetDC(hWnd);
+
+        // 펜 생성 및 설정
+        switch (g_color)        // 0
+        {
+        case 1:         // 빨강
+            newPen = CreatePen(PS_SOLID, 15, RGB(255, 0, 0));
+            break;
+
+        case 2:         // 녹색
+            newPen = CreatePen(PS_SOLID, 15, RGB(0, 255, 0));
+            break;
+
+        case 3:         // 파랑
+            newPen = CreatePen(PS_SOLID, 15, RGB(0, 0, 255));
+            break;
+
+        default:
+            newPen = CreatePen(PS_SOLID, 15, RGB(0, 0, 0));
+            break;
+        }
+
+        // OS의 현재 펜과 생성한 펜을 교체
+        osPen = (HPEN)SelectObject(hdc, newPen);
+
+        // 실제로 그리기
+        switch (g_draw_type)
+        {
+        case 1:         /// 선
+            MoveToEx(hdc, g_x, g_y, NULL);
+            LineTo(hdc, x, y);
+            break;
+
+        case 2:         /// 사각형
+            Rectangle(hdc, g_x, g_y, x, y);
+            break;
+
+        case 3:         /// 타원
+            Ellipse(hdc, g_x, g_y, x, y);
+            break;
+
+        case 4:         /// 자유선
+            break;
+        }
+        
+        // OS의 원래 펜으로 복원
+        SelectObject(hdc, osPen);
+        // 펜 자원 해제
+        DeleteObject(newPen);
+
+        ReleaseDC(hWnd, hdc);
+    }
+        break;
+#endif
 
 #if EX_02
     case WM_LBUTTONDOWN:
