@@ -4,6 +4,9 @@
 #include "framework.h"
 #include "2021_10_14.h"
 
+#include <stdlib.h>             // 랜덤(무작위) 관련 함수
+#include <time.h>               // SEED 변경. 현재 시간 값이 SEED로 사용되면 항상 다른 값.
+
 #define MAX_LOADSTRING 100
 
 // 전역 변수:
@@ -124,6 +127,11 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
 // 나와 상대의 좌표를 보관할 변수 선언
 RECT g_me, g_you;
+// 아이템 변수 선언
+RECT g_item;
+
+// 상대 난이도 조절을 위한 시간 값
+int g_level;
 
 // 타이머 ID 값을 선언
 #define TIMER_ID_1      1       // 상대의 움직임을 위한 주기적인 호출 ID
@@ -153,6 +161,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
     // 나의 이동
     case WM_KEYDOWN:
+        RECT dst;       // 겹침 영역 확인용 자료형
+
         switch (wParam)
         {
         case VK_LEFT:   // 나의 x 좌표 값은 감소
@@ -176,6 +186,31 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             break;
         }
         // 좌표에 대한 계산이 모두 완료된 상태
+
+        // item을 먹었는지 확인
+        if (TRUE == IntersectRect(&dst, &g_me, &g_item))
+        {
+            /*
+            // 1. 아이템 제거
+            g_item.left = -10;
+            g_item.top = -10;
+            g_item.right = -5;
+            g_item.bottom = -5;
+            */
+            // 2. 상대방 정지
+            //KillTimer(hWnd, TIMER_ID_1);
+
+            // 4. 아이템 위치 재설정
+            g_item.left = rand() % 400;
+            g_item.top = rand() % 400;
+            g_item.right = g_item.left + 40;
+            g_item.bottom = g_item.top + 40;
+
+            // 3. 상대방이 느려진다
+            KillTimer(hWnd, TIMER_ID_1);
+            SetTimer(hWnd, TIMER_ID_1, 1000, NULL);
+        }
+
         // 화면 무효화 -> WM_PAINT를 호출
         InvalidateRect(hWnd, NULL, TRUE);
         break;
@@ -194,9 +229,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         g_you.right = g_you.left + 40;
         g_you.bottom = g_you.top + 40;
 
+        // 무작위 SEED 값을 현재 시간으로 설정
+        srand(time(NULL));
+
+        // 아이템의 좌표를 설정. 40 * 40
+        g_item.left = rand() % 400;         // 0 ~ 399
+        g_item.top = rand() % 400;
+        g_item.right = g_item.left + 40;
+        g_item.bottom = g_item.top + 40;
+
+        // 최초 타이머 설정
+        g_level = 1000;
         // 타이머를 설정. 1초마다 주기적으로 호출
-        // 설정한 시간마다 WM_TIMER 호출
-        SetTimer(hWnd, TIMER_ID_1, 1000, NULL);
+        // 설정한 시간마다 WM_TIMER 호출 -> OS에 요청
+        SetTimer(hWnd, TIMER_ID_1, g_level, NULL);
         break;
 
     case WM_TIMER:
@@ -230,6 +276,26 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         // 상대의 좌표 변경이 완료된 시점
 
+        // 상대와 나의 겹침 영역 확인
+        if (TRUE == IntersectRect(&dst, &g_me, &g_you))    // 겹침 영역이 있다!
+        {
+            // 주기적인 호출을 중단
+            KillTimer(hWnd, TIMER_ID_1);
+            // 부모 윈도우에 종속적인 윈도우
+            MessageBox(hWnd, L"겹쳐부러써~", L"아이고", MB_OK);
+            // WndProc 함수를 종료
+            return 0;
+        }
+
+        // 주기적 호출 시간을 확인
+        if (100 != g_level)
+        {
+            g_level -= 100;     // 1초당 0.1초씩 줄어든다.
+
+            KillTimer(hWnd, TIMER_ID_1);                    // 1번을 정지
+            SetTimer(hWnd, TIMER_ID_1, g_level, NULL);      // 1번으로 새로운 타이머 생성
+        }
+
         // 화면 무효화
         InvalidateRect(hWnd, NULL, TRUE);
         break;
@@ -243,6 +309,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             Ellipse(hdc, g_me.left, g_me.top, g_me.right, g_me.bottom);
             // 상대 그리기
             Rectangle(hdc, g_you.left, g_you.top, g_you.right, g_you.bottom);
+            // item draw
+            Ellipse(hdc, g_item.left, g_item.top, g_item.right, g_item.bottom);
             EndPaint(hWnd, &ps);
         }
         break;
