@@ -126,16 +126,25 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 //
 
 // 나와 상대의 좌표를 보관할 변수 선언
-RECT g_me, g_you;
+RECT g_me, g_you[ 3 ];
 // 아이템 변수 선언
 RECT g_item;
 
 // 상대 난이도 조절을 위한 시간 값
 int g_level;
 
+// 제한 시간. 기본 10초. 아이템을 먹으면 10초 리셋. 0이되면 게임
+int g_time;
+
+// 점수(아이템을 먹었을때 증가. WM_PAINT 표시) 누적
+int g_score;
+
+// 무적키
+int g_inf;
+
 // 타이머 ID 값을 선언
 #define TIMER_ID_1      1       // 상대의 움직임을 위한 주기적인 호출 ID
-
+#define TIMER_ID_2      2       // 제한 시간 타이머
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -184,12 +193,23 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             g_me.top += 10;
             g_me.bottom += 10;
             break;
+
+        case VK_F6:
+            g_inf = 1;
+            break;
         }
         // 좌표에 대한 계산이 모두 완료된 상태
 
         // item을 먹었는지 확인
         if (TRUE == IntersectRect(&dst, &g_me, &g_item))
         {
+            // 제한 시간 리셋
+            g_time = 10;
+            // 난이도도 초기화
+            g_level = 1000;
+
+            // 점수 증가
+            g_score += 100;
             /*
             // 1. 아이템 제거
             g_item.left = -10;
@@ -224,10 +244,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         g_me.bottom = g_me.top + 40;
 
         // 상대의 좌표를 설정. 40 * 40
-        g_you.left = 400;
-        g_you.top = 400;
-        g_you.right = g_you.left + 40;
-        g_you.bottom = g_you.top + 40;
+        g_you[ 0 ].left = 400;
+        g_you[0].top = 400;
+        g_you[0].right = g_you[0].left + 40;
+        g_you[0].bottom = g_you[0].top + 40;
+
+        g_you[1].left = rand() % 400;
+        g_you[1].top = rand() % 400;
+        g_you[1].right = g_you[1].left + 40;
+        g_you[1].bottom = g_you[1].top + 40;
+
+        g_you[2].left = rand() % 400;
+        g_you[2].top = rand() % 400;
+        g_you[2].right = g_you[2].left + 40;
+        g_you[2].bottom = g_you[2].top + 40;
+
 
         // 무작위 SEED 값을 현재 시간으로 설정
         srand(time(NULL));
@@ -238,6 +269,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         g_item.right = g_item.left + 40;
         g_item.bottom = g_item.top + 40;
 
+        // 제한 시간 설정
+        g_time = 10;
+        SetTimer(hWnd, TIMER_ID_2, 1000, NULL);
+
         // 최초 타이머 설정
         g_level = 1000;
         // 타이머를 설정. 1초마다 주기적으로 호출
@@ -245,46 +280,73 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         SetTimer(hWnd, TIMER_ID_1, g_level, NULL);
         break;
 
-    case WM_TIMER:
+    case WM_TIMER:      // timer ID 값을 가지는 변수: 
+    {
+        int i = 0;
+
+        if (TIMER_ID_2 == wParam)       // 제한 시간 ID 값에 의한 주기적인 호출인지 확인
+        {
+            // 제한 시간 감소
+            //g_time--;
+
+            // 제한 시간이 만료되면.
+            if (0 == g_time)
+            {
+                // 게임 종료
+                KillTimer(hWnd, TIMER_ID_1);
+                KillTimer(hWnd, TIMER_ID_2);
+                MessageBox(hWnd, L"타이머에 의한 종료", L"흐흐", MB_OK);
+                return 0;
+            }
+
+            break;
+        }
         // 상대가 움직이도록 구성
-        // x 좌표에 대해 비교
-        if (g_me.left < g_you.left)     // 나는 상대의 왼쪽
-        {
-            // 상대의 좌표를 변경 -> 왼쪽으로
-            g_you.left -= 10;
-            g_you.right -= 10;
-        }
-        else
-        {
-            // 상대의 좌표를 변경 -> 오른쪽으로
-            g_you.left += 10;
-            g_you.right += 10;
-        }
 
-        // y 좌표에 대해 비교
-        if (g_me.top < g_you.top)           // 참 : 나는 상대의 위쪽
+        for (i = 0; i < 3; i++)
         {
-            // 상대의 좌표를 변경 -> 위쪽으로
-            g_you.top -= 10;
-            g_you.bottom -= 10;
-        }
-        else
-        {
-            // 상대의 좌표를 변경 -> 아래쪽으로
-            g_you.top += 10;
-            g_you.bottom += 10;
-        }
-        // 상대의 좌표 변경이 완료된 시점
+            // x 좌표에 대해 비교
+            if (g_me.left < g_you[i].left)     // 나는 상대의 왼쪽
+            {
+                // 상대의 좌표를 변경 -> 왼쪽으로
+                g_you[i].left -= 10;
+                g_you[i].right -= 10;
+            }
+            else
+            {
+                // 상대의 좌표를 변경 -> 오른쪽으로
+                g_you[i].left += 10;
+                g_you[i].right += 10;
+            }
 
-        // 상대와 나의 겹침 영역 확인
-        if (TRUE == IntersectRect(&dst, &g_me, &g_you))    // 겹침 영역이 있다!
-        {
-            // 주기적인 호출을 중단
-            KillTimer(hWnd, TIMER_ID_1);
-            // 부모 윈도우에 종속적인 윈도우
-            MessageBox(hWnd, L"겹쳐부러써~", L"아이고", MB_OK);
-            // WndProc 함수를 종료
-            return 0;
+            // y 좌표에 대해 비교
+            if (g_me.top < g_you[i].top)           // 참 : 나는 상대의 위쪽
+            {
+                // 상대의 좌표를 변경 -> 위쪽으로
+                g_you[i].top -= 10;
+                g_you[i].bottom -= 10;
+            }
+            else
+            {
+                // 상대의 좌표를 변경 -> 아래쪽으로
+                g_you[i].top += 10;
+                g_you[i].bottom += 10;
+            }
+            // 상대의 좌표 변경이 완료된 시점
+
+            if (1 != g_inf)
+            {
+                // 상대와 나의 겹침 영역 확인
+                if (TRUE == IntersectRect(&dst, &g_me, &g_you[i]))    // 겹침 영역이 있다!
+                {
+                    // 주기적인 호출을 중단
+                    KillTimer(hWnd, TIMER_ID_1);
+                    // 부모 윈도우에 종속적인 윈도우
+                    MessageBox(hWnd, L"겹쳐부러써~", L"아이고", MB_OK);
+                    // WndProc 함수를 종료
+                    return 0;
+                }
+            }
         }
 
         // 주기적 호출 시간을 확인
@@ -298,17 +360,27 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         // 화면 무효화
         InvalidateRect(hWnd, NULL, TRUE);
+    }
         break;
 
     case WM_PAINT:
         {
+            int i = 0;
+            WCHAR string[64] = { 0, };
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hWnd, &ps);
             // TODO: 여기에 hdc를 사용하는 그리기 코드를 추가합니다...
+            // 점수 정보 출력
+            wsprintfW(string, L"점수: %d    제한 시간: %d초", g_score, g_time);
+            TextOut(hdc, 500, 20, string, lstrlenW(string));
+
             // 나 그리기
             Ellipse(hdc, g_me.left, g_me.top, g_me.right, g_me.bottom);
             // 상대 그리기
-            Rectangle(hdc, g_you.left, g_you.top, g_you.right, g_you.bottom);
+            for (i = 0; i < 3; i++)
+            {
+                Rectangle(hdc, g_you[i].left, g_you[i].top, g_you[i].right, g_you[i].bottom);
+            }
             // item draw
             Ellipse(hdc, g_item.left, g_item.top, g_item.right, g_item.bottom);
             EndPaint(hWnd, &ps);
