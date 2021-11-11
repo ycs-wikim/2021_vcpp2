@@ -16,7 +16,7 @@ ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
-
+HANDLE g_m;
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
                      _In_ LPWSTR    lpCmdLine,
@@ -26,7 +26,15 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(lpCmdLine);
 
     // TODO: 여기에 코드를 입력합니다.
-
+    g_m = OpenMutex(MUTEX_ALL_ACCESS, FALSE, L"여자친구");
+    if (g_m == NULL) {
+        //MessageBox(NULL, L"외로워요", L"서해안", MB_OK);
+    }
+    else {
+        MessageBox(NULL, L"프로그램이 이미 실행 중입니다.", L"그만해!", MB_OK);
+        return 0;
+    }
+    g_m = CreateMutex(NULL, FALSE, L"여자친구");
     // 전역 문자열을 초기화합니다.
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_MY20211111, szWindowClass, MAX_LOADSTRING);
@@ -127,7 +135,7 @@ int g_x;
 BOOL g_flag;
 CRITICAL_SECTION g_cs;
 HANDLE g_sem;
-
+HANDLE g_mux;
 /// 쓰레드 함수
 DWORD WINAPI pig(LPVOID param)
 {
@@ -142,7 +150,8 @@ DWORD WINAPI pig(LPVOID param)
 
         }
         g_flag = TRUE;
-        WaitForSingleObject(g_sem, INFINITE);
+        //WaitForSingleObject(g_sem, INFINITE);
+        WaitForSingleObject(g_mux, INFINITE);
         //공유자원 임계영역시작
         //EnterCriticalSection(&g_cs);
         g_x = x;
@@ -151,7 +160,8 @@ DWORD WINAPI pig(LPVOID param)
         Sleep(30);
         LineTo(hdc, g_x, i);
         //임계영역 종료
-        ReleaseSemaphore(g_sem, 1, NULL);
+        ReleaseMutex(g_mux);
+        //ReleaseSemaphore(g_sem, 1, NULL);
         //LeaveCriticalSection(&g_cs);
         g_flag = FALSE; 
         wsprintfW(buf, L"%d", i);
@@ -173,7 +183,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     // 초기화
     case WM_CREATE:
         g_hWnd = hWnd;
-        g_sem = CreateSemaphore(NULL, 0, 2, NULL);
+        g_mux = CreateMutex(NULL, FALSE, NULL);
+        //g_sem = CreateSemaphore(NULL, 5, 5, NULL);
        // InitializeCriticalSection(&g_cs);
         break;
 
@@ -210,7 +221,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
     case WM_DESTROY:
         //DeleteCriticalSection(&g_cs);
-        CloseHandle(g_sem);
+       // CloseHandle(g_sem);
+        CloseHandle(g_mux);
         PostQuitMessage(0);
         break;
     default:
