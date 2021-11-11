@@ -136,6 +136,42 @@ BOOL g_flag;
 CRITICAL_SECTION g_cs;
 HANDLE g_sem;
 HANDLE g_mux;
+
+int g_y;
+
+DWORD WINAPI pig(LPVOID param)
+{
+    int x, i, j, y;
+    HDC hdc;
+    WCHAR buf[128] = { 0, };
+    x = (int)param;
+
+    hdc = GetDC(g_hWnd);
+
+    g_y += 20;
+    y = g_y;
+
+    TextOut(hdc, x, y, L"Waitz....", 10);
+
+    WaitForSingleObject(g_sem, INFINITE);
+    for (i = 0; i < 100; i++)
+    {
+        wsprintfW(buf, L"%d%% ", i + 1);
+        for (j = 0; j < i; j++)
+            lstrcatW(buf, L"|");
+
+        TextOut(hdc, x, y, buf, lstrlenW(buf));
+        Sleep(30);
+    }
+    ReleaseSemaphore(g_sem, 1, NULL);
+
+    ReleaseDC(g_hWnd, hdc);
+
+    ExitThread(0);
+    return 0;
+}
+
+/*
 /// 쓰레드 함수
 DWORD WINAPI pig(LPVOID param)
 {
@@ -174,6 +210,7 @@ DWORD WINAPI pig(LPVOID param)
     ExitThread(0);
     return 0;
 }
+*/
 
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -184,7 +221,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_CREATE:
         g_hWnd = hWnd;
         g_mux = CreateMutex(NULL, FALSE, NULL);
-        //g_sem = CreateSemaphore(NULL, 5, 5, NULL);
+        g_sem = CreateSemaphore(NULL, 5, 5, NULL);
        // InitializeCriticalSection(&g_cs);
         break;
 
@@ -211,6 +248,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
         }
         break;
+    case WM_RBUTTONDOWN:
+        g_y = 0;
+        break;
+
     case WM_PAINT:
         {
             PAINTSTRUCT ps;
@@ -221,7 +262,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
     case WM_DESTROY:
         //DeleteCriticalSection(&g_cs);
-       // CloseHandle(g_sem);
+        CloseHandle(g_sem);
         CloseHandle(g_mux);
         PostQuitMessage(0);
         break;
