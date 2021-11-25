@@ -125,6 +125,27 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
+    case WM_LBUTTONDOWN:
+    {
+        HWND child;
+        // 상대 찾기 : HWND를 획득한다.
+        child = FindWindow(L"CHILD", NULL);
+        // 윈도우 핸들 획득 확인
+        if (NULL == child)
+        {
+            // 상대를 찾을 수 없음
+            MessageBox(hWnd, L"Not found", L"ho~", MB_OK);
+            break;
+        }
+
+        MessageBox(hWnd, L"FIND~~~~~~ window~~~~", L"HO~", MB_OK);
+
+        //SendMessage(child, WM_LBUTTONDOWN, wParam, lParam);
+        //PostMessage(child, WM_LBUTTONDOWN, wParam, lParam);
+        PostMessage(child, WM_USER + 35, wParam, lParam);
+    }
+        break;
+        
     case WM_COMMAND:
         {
             int wmId = LOWORD(wParam);

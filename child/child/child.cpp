@@ -149,6 +149,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         draw(LOWORD(lParam), hWnd);
     }
         break;
+
+    case WM_USER + 35:
+    {
+        HDC hdc;
+
+        hdc = GetDC(hWnd);
+
+        Ellipse(hdc, 0, 0, LOWORD(lParam), HIWORD(lParam));
+
+        ReleaseDC(hWnd, hdc);
+    }
+        break;
+
     case WM_COMMAND:
         {
             int wmId = LOWORD(wParam);
