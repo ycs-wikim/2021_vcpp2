@@ -1,8 +1,8 @@
-﻿// 2021_11_18.cpp : 애플리케이션에 대한 진입점을 정의합니다.
+﻿// child.cpp : 애플리케이션에 대한 진입점을 정의합니다.
 //
 
 #include "framework.h"
-#include "2021_11_18.h"
+#include "child.h"
 
 #define MAX_LOADSTRING 100
 
@@ -17,34 +17,19 @@ BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
-// 1. 시작 인수로부터 notepad의 PID를 획득
-//  --> 실행 인수(문자열)로부터 획득. --> 숫자로 변환
-//  --> 지역변수로 선언될 경우, WndProc 등에서 사용 불가
-
-int g_pid;
-
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
                      _In_ LPWSTR    lpCmdLine,
                      _In_ int       nCmdShow)
 {
-    //int value = 0;
-    WCHAR buf[128] = { 0, };
-
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
-
-    // 2. 시작 인수의 값을 문자열에서 숫자로 변환하여 획득
-    g_pid = _wtoi(lpCmdLine);
-
-    wsprintfW(buf, L"Recv value: %d", g_pid);
-    MessageBox(NULL, buf, buf, MB_OK);
 
     // TODO: 여기에 코드를 입력합니다.
 
     // 전역 문자열을 초기화합니다.
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
-    LoadStringW(hInstance, IDC_MY20211118, szWindowClass, MAX_LOADSTRING);
+    LoadStringW(hInstance, IDC_CHILD, szWindowClass, MAX_LOADSTRING);
     MyRegisterClass(hInstance);
 
     // 애플리케이션 초기화를 수행합니다:
@@ -53,7 +38,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         return FALSE;
     }
 
-    HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_MY20211118));
+    HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_CHILD));
 
     MSG msg;
 
@@ -88,10 +73,10 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     wcex.cbClsExtra     = 0;
     wcex.cbWndExtra     = 0;
     wcex.hInstance      = hInstance;
-    wcex.hIcon          = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_MY20211118));
+    wcex.hIcon          = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_CHILD));
     wcex.hCursor        = LoadCursor(nullptr, IDC_ARROW);
     wcex.hbrBackground  = (HBRUSH)(COLOR_WINDOW+1);
-    wcex.lpszMenuName   = MAKEINTRESOURCEW(IDC_MY20211118);
+    wcex.lpszMenuName   = MAKEINTRESOURCEW(IDC_CHILD);
     wcex.lpszClassName  = szWindowClass;
     wcex.hIconSm        = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
@@ -137,58 +122,32 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 //
 //
 
-// OS가 프로세스를 생성한 다음 프로세스의 정보를 반환 받기 위한 용도
-// 생성 후 반환되는 프로세스의 정보
-PROCESS_INFORMATION g_pi, pi;
-// 실행되는 프로세스의 초기 상태 값
-// 생성 전 필요한 설정 정보
-STARTUPINFO g_si, si;
+void draw(int x, HWND hWnd)
+{
+    int i;
+    HDC hdc;
+
+    hdc = GetDC(hWnd);
+
+    for (i = 0; i < 200; i++)
+    {
+        MoveToEx(hdc, x, 0, NULL);
+        LineTo(hdc, x, i);
+        Sleep(30);
+    }
+
+    ReleaseDC(hWnd, hdc);
+}
+
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
-    case WM_RBUTTONDOWN:
-    {
-        HANDLE handle;
-        //TerminateProcess(g_pi.hProcess, 0);
-
-        if (0 == g_pid)
-            break;
-
-        handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, g_pid);
-        TerminateProcess(handle, 0);
-
-        //TerminateProcess(GetCurrentProcess(), 0);
-        //ExitProcess(0);
-    }
-        break;
-    case WM_KEYDOWN:
-    {
-        // notepad의 base thread 일시 정지
-        SuspendThread(g_pi.hThread);
-        // 5초간 정지
-        Sleep(5000);
-        // base thread 재개
-        ResumeThread(g_pi.hThread);
-    }
-        break;
     case WM_LBUTTONDOWN:
     {
-        WCHAR note[128] = L"c:\\windows\\system32\\notepad.exe";
-        WCHAR me[128] = L"D:\\2021_wikim\\2021_vcpp2\\2021_11_18\\Debug\\2021_11_18.exe";
-        WCHAR mbuf[128] = { 0, };
-        if (0 != g_pid)
-            break;
-
-        // 3. notepad 실행 ==> notepad 프로세스 정보를 획득
-        CreateProcess(NULL, note, NULL, NULL, FALSE, 0, NULL, NULL, &g_si, &g_pi);
-        // 4. 실행 프로그램 경로 + 시작 인수 문자열 생성
-        wsprintfW(mbuf, L"%s %d", me, g_pi.dwProcessId);
-        // 5. 자식 프로세스를 생성
-        CreateProcess(NULL, mbuf, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
+        draw(LOWORD(lParam), hWnd);
     }
-
         break;
     case WM_COMMAND:
         {
@@ -210,16 +169,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_PAINT:
         {
             PAINTSTRUCT ps;
-            WCHAR buf[128] = { 0, };
             HDC hdc = BeginPaint(hWnd, &ps);
             // TODO: 여기에 hdc를 사용하는 그리기 코드를 추가합니다...
-            
-            wsprintfW(buf, L"Child - PID[ %d ] TID[ %d ]", g_pi.dwProcessId, g_pi.dwThreadId);
-            TextOut(hdc, 10, 10, buf, lstrlenW(buf));
-            wsprintfW(buf, L"My Information - PID[ %d ] TID[ %d ]",
-                GetCurrentProcessId(), GetCurrentThreadId( ));
-            TextOut(hdc, 10, 30, buf, lstrlenW(buf));
-
             EndPaint(hWnd, &ps);
         }
         break;
