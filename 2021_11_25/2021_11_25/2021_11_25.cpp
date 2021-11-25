@@ -127,22 +127,38 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     {
     case WM_LBUTTONDOWN:
     {
-        HWND child;
+        HWND notepad;
+
+        notepad = FindWindow(L"Notepad", NULL);
+        PostMessage(notepad, WM_CLOSE, 0, 0);
+    }
+        break;
+    case WM_KEYDOWN:
+    {
+        HWND child, edit;
         // 상대 찾기 : HWND를 획득한다.
-        child = FindWindow(L"CHILD", NULL);
+        child = FindWindow(L"Notepad", NULL);
         // 윈도우 핸들 획득 확인
         if (NULL == child)
         {
             // 상대를 찾을 수 없음
-            MessageBox(hWnd, L"Not found", L"ho~", MB_OK);
+            MessageBox(hWnd, L"Notepad Not found", L"ho~", MB_OK);
             break;
         }
 
-        MessageBox(hWnd, L"FIND~~~~~~ window~~~~", L"HO~", MB_OK);
+        edit = FindWindowEx(child, NULL, L"Edit", NULL);
+        if (NULL == edit)
+        {
+            // 상대를 찾을 수 없음
+            MessageBox(hWnd, L"Edit Not found", L"ho~", MB_OK);
+            break;
+        }
+        //MessageBox(hWnd, L"FIND~~~~~~ window~~~~", L"HO~", MB_OK);
 
         //SendMessage(child, WM_LBUTTONDOWN, wParam, lParam);
         //PostMessage(child, WM_LBUTTONDOWN, wParam, lParam);
-        PostMessage(child, WM_USER + 35, wParam, lParam);
+        //PostMessage(edit, WM_KEYDOWN, 65, lParam);
+        PostMessage(edit, WM_CHAR, wParam, lParam);
     }
         break;
         
